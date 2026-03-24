@@ -278,14 +278,37 @@ async function run() {
         }
 
         // Filter to specific sites if requested
+        // stringList editor passes [{ "string": "siteName" }] format
+        let siteList = []
         if (config.sites && config.sites.length > 0) {
-            const filtered = {}
             for (const site of config.sites) {
-                if (siteData[site]) {
-                    filtered[site] = siteData[site]
+                if (typeof site === 'string') {
+                    siteList.push(site.trim())
+                } else if (site && site.string) {
+                    siteList.push(site.string.trim())
+                }
+            }
+        }
+        
+        if (siteList.length > 0) {
+            const filtered = {}
+            for (const siteName of siteList) {
+                // Try exact match first, then case-insensitive
+                if (siteData[siteName]) {
+                    filtered[siteName] = siteData[siteName]
+                } else {
+                    // Try case-insensitive match
+                    const lowerName = siteName.toLowerCase()
+                    for (const [name, info] of Object.entries(siteData)) {
+                        if (name.toLowerCase() === lowerName) {
+                            filtered[name] = info
+                            break
+                        }
+                    }
                 }
             }
             siteData = filtered
+            await cafesdk.log.info(`Filtered to ${Object.keys(siteData).length} specific sites: ${siteList.join(', ')}`)
         }
 
         const siteNames = Object.keys(siteData)
