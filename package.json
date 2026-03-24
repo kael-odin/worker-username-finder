@@ -1,0 +1,28 @@
+{
+  "name": "username-finder",
+  "version": "1.0.0",
+  "description": "Find usernames across 400+ social networks. Check if a username is available or already taken. | 在 400+ 社交网络中查找用户名，检查用户名是否可用或已被占用。",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.13.4",
+    "google-protobuf": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "username search",
+    "osint",
+    "social media",
+    "username checker",
+    "sherlock",
+    "用户名搜索",
+    "社交媒体"
+  ],
+  "author": "kael-odin",
+  "license": "MIT"
+}

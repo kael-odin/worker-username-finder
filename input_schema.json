@@ -1,0 +1,57 @@
+{
+  "description": "🔍 Find usernames across 400+ social networks. Check if a username is available or already taken on various platforms. | 🔍 在 400+ 社交网络中查找用户名，检查用户名是否可用或已被占用。",
+  "b": "username",
+  "properties": [
+    {
+      "title": "用户名 | Username",
+      "name": "username",
+      "type": "array",
+      "editor": "requestList",
+      "description": "Usernames to search across social networks. | 要搜索的用户名列表",
+      "default": [
+        { "url": "john_doe" }
+      ],
+      "required": true
+    },
+    {
+      "title": "超时时间(秒) | Timeout (secs)",
+      "name": "timeout",
+      "type": "integer",
+      "editor": "number",
+      "description": "Request timeout in seconds per site. | 每个站点的请求超时秒数",
+      "default": 30
+    },
+    {
+      "title": "最大并发数 | Concurrency",
+      "name": "maxConcurrency",
+      "type": "integer",
+      "editor": "number",
+      "description": "Maximum concurrent requests. | 最大并发请求数",
+      "default": 20
+    },
+    {
+      "title": "包含 NSFW 站点 | Include NSFW",
+      "name": "includeNsfw",
+      "type": "boolean",
+      "editor": "switch",
+      "description": "Include adult content sites in search. | 是否包含成人内容站点",
+      "default": false
+    },
+    {
+      "title": "显示所有结果 | Show All Results",
+      "name": "printAll",
+      "type": "boolean",
+      "editor": "switch",
+      "description": "Show all results including not found. | 显示所有结果包括未找到的",
+      "default": false
+    },
+    {
+      "title": "指定站点 | Specific Sites",
+      "name": "sites",
+      "type": "array",
+      "editor": "stringList",
+      "description": "Only check these sites (empty = all sites). | 只检查这些站点（空=所有站点）",
+      "default": []
+    }
+  ]
+}
