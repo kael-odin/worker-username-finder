@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.13.4",
-    "google-protobuf": "^4.0.0"
+    "google-protobuf": "^4.0.0",
+    "https-proxy-agent": "^7.0.0"
   },
   "engines": {
     "node": ">=18.0.0"

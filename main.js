@@ -7,6 +7,7 @@ const cafesdk = require('./sdk')
 const https = require('https')
 const http = require('http')
 const { URL } = require('url')
+const { HttpsProxyAgent } = require('https-proxy-agent')
 
 const MANIFEST_URL = 'https://raw.githubusercontent.com/sherlock-project/sherlock/master/sherlock_project/resources/data.json'
 
@@ -16,6 +17,15 @@ const DEFAULT_CONFIG = {
     includeNsfw: false,
     printAll: false,
     sites: []
+}
+
+function getProxyAgent() {
+    const proxyAuth = process.env.PROXY_AUTH
+    if (proxyAuth) {
+        const proxyUrl = `http://${proxyAuth}@proxy-inner.cafescraper.com:6000`
+        return new HttpsProxyAgent(proxyUrl)
+    }
+    return null
 }
 
 const QueryStatus = {
@@ -38,6 +48,8 @@ async function fetchJson(url) {
         const parsedUrl = new URL(url)
         const client = parsedUrl.protocol === 'https:' ? https : http
         
+        const proxyAgent = getProxyAgent()
+        
         const options = {
             hostname: parsedUrl.hostname,
             port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
@@ -48,6 +60,10 @@ async function fetchJson(url) {
                 'Accept': 'application/json'
             },
             timeout: 30000
+        }
+        
+        if (proxyAgent) {
+            options.agent = proxyAgent
         }
 
         const req = client.request(options, (res) => {
