@@ -5,10 +5,10 @@
     {
       "title": "用户名 | Username",
       "name": "username",
-      "type": "string",
-      "editor": "textarea",
+      "type": "array",
+      "editor": "stringList",
       "description": "Username(s) to search. One per line. | 要搜索的用户名，每行一个",
-      "default": "john_doe",
+      "default": ["john_doe"],
       "required": true
     },
     {
