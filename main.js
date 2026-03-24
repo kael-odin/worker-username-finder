@@ -236,15 +236,13 @@ async function run() {
 
         const config = { ...DEFAULT_CONFIG, ...input }
         
-        // Parse usernames
+        // Parse usernames - now a simple string
         let usernames = []
         if (input.username) {
-            if (Array.isArray(input.username)) {
-                usernames = input.username.map(u => typeof u === 'string' ? u.trim() : u.url?.trim()).filter(Boolean)
-            } else if (typeof input.username === 'string') {
+            if (typeof input.username === 'string') {
                 usernames = [input.username.trim()]
-            } else if (input.username.url) {
-                usernames = [input.username.url.trim()]
+            } else if (Array.isArray(input.username)) {
+                usernames = input.username.map(u => typeof u === 'string' ? u.trim() : String(u).trim()).filter(Boolean)
             }
         }
         

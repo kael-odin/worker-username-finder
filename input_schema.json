@@ -5,12 +5,10 @@
     {
       "title": "用户名 | Username",
       "name": "username",
-      "type": "array",
-      "editor": "requestList",
-      "description": "Usernames to search across social networks. | 要搜索的用户名列表",
-      "default": [
-        { "url": "john_doe" }
-      ],
+      "type": "string",
+      "editor": "textfield",
+      "description": "Username to search across social networks. | 要搜索的用户名",
+      "default": "john_doe",
       "required": true
     },
     {
