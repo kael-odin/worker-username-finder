@@ -236,13 +236,24 @@ async function run() {
 
         const config = { ...DEFAULT_CONFIG, ...input }
         
-        // Parse usernames - now a simple string
+        // Parse usernames - stringList editor puts data in 'string' field
         let usernames = []
-        if (input.username) {
+        
+        // Check 'string' field (stringList editor format)
+        if (input.string) {
+            if (typeof input.string === 'string') {
+                usernames = [input.string.trim()]
+            } else if (Array.isArray(input.string)) {
+                usernames = input.string.map(u => typeof u === 'string' ? u.trim() : u.string?.trim()).filter(Boolean)
+            }
+        }
+        
+        // Also check 'username' field
+        if (usernames.length === 0 && input.username) {
             if (typeof input.username === 'string') {
                 usernames = [input.username.trim()]
             } else if (Array.isArray(input.username)) {
-                usernames = input.username.map(u => typeof u === 'string' ? u.trim() : String(u).trim()).filter(Boolean)
+                usernames = input.username.map(u => typeof u === 'string' ? u.trim() : u.string?.trim()).filter(Boolean)
             }
         }
         
