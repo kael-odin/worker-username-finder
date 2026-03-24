@@ -8,7 +8,7 @@
       "type": "array",
       "editor": "stringList",
       "description": "Username(s) to search. One per line. | 要搜索的用户名，每行一个",
-      "default": ["john_doe"],
+      "default": [{ "string": "john_doe" }],
       "required": true
     },
     {
