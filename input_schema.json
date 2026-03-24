@@ -5,10 +5,10 @@
     {
       "title": "用户名 | Username",
       "name": "username",
-      "type": "string",
-      "editor": "textfield",
-      "description": "Username to search across social networks. | 要搜索的用户名",
-      "default": "john_doe",
+      "type": "array",
+      "editor": "stringList",
+      "description": "Username(s) to search across social networks. One per line. | 要搜索的用户名，每行一个",
+      "default": ["john_doe"],
       "required": true
     },
     {
