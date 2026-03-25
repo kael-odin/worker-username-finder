@@ -1,14 +1,16 @@
 {
   "description": "🔍 Find usernames across 400+ social networks. Check if a username is available or already taken on various platforms. | 🔍 在 400+ 社交网络中查找用户名，检查用户名是否可用或已被占用。",
-  "b": "sites",
+  "b": "usernames",
   "properties": [
     {
-      "title": "用户名 | Username",
-      "name": "username",
-      "type": "string",
-      "editor": "textarea",
-      "description": "Username(s) to search. One per line. | 要搜索的用户名，每行一个",
-      "default": "john_doe",
+      "title": "用户名列表 | Usernames",
+      "name": "usernames",
+      "type": "array",
+      "editor": "stringList",
+      "description": "Username(s) to search across social networks. | 要搜索的用户名列表",
+      "default": [
+        { "string": "john_doe" }
+      ],
       "required": true
     },
     {
@@ -49,7 +51,7 @@
       "type": "array",
       "editor": "stringList",
       "description": "Only check these sites (empty = all sites). | 只检查这些站点（空=所有站点）",
-      "default": [{"string": "Twitter"}]
+      "default": []
     }
   ]
 }

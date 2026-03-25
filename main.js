@@ -7,7 +7,39 @@ const cafesdk = require('./sdk')
 const https = require('https')
 const http = require('http')
 const { URL } = require('url')
-const { HttpsProxyAgent } = require('https-proxy-agent')
+
+// Global proxy agent for cloud environment
+let proxyDispatcher = null
+let fetchFn = null
+
+// Initialize proxy for Cafe cloud environment
+async function initProxy() {
+    const proxyAuth = process.env.PROXY_AUTH
+    const isLocalDev = process.env.LOCAL_DEV === '1' || !proxyAuth
+    
+    if (isLocalDev) {
+        return null // No proxy in local development
+    }
+    
+    // Cafe cloud environment: use platform proxy via undici
+    try {
+        const undici = await import('undici')
+        const { ProxyAgent, setGlobalDispatcher, fetch } = undici
+        
+        const [username, password] = proxyAuth.split(':')
+        const proxyUrl = `http://${username}:${password}@proxy-inner.cafescraper.com:6000`
+        
+        proxyDispatcher = new ProxyAgent(proxyUrl)
+        setGlobalDispatcher(proxyDispatcher)
+        fetchFn = fetch
+        
+        console.log('[INFO] Cloud proxy initialized via undici')
+        return true
+    } catch (e) {
+        console.warn('[WARN] Failed to initialize undici proxy, falling back to direct requests:', e.message)
+        return null
+    }
+}
 
 const MANIFEST_URL = 'https://raw.githubusercontent.com/sherlock-project/sherlock/master/sherlock_project/resources/data.json'
 
@@ -17,15 +49,6 @@ const DEFAULT_CONFIG = {
     includeNsfw: false,
     printAll: false,
     sites: []
-}
-
-function getProxyAgent() {
-    const proxyAuth = process.env.PROXY_AUTH
-    if (proxyAuth) {
-        const proxyUrl = `http://${proxyAuth}@proxy-inner.cafescraper.com:6000`
-        return new HttpsProxyAgent(proxyUrl)
-    }
-    return null
 }
 
 const QueryStatus = {
@@ -43,12 +66,34 @@ const WAF_SIGNATURES = [
     '{return l.onPageView}}),Object.defineProperty(r,"perimeterxIdentifiers"'
 ]
 
+// Check if we're in Cafe cloud environment
+const isCloudEnv = !!process.env.PROXY_AUTH && process.env.LOCAL_DEV !== '1'
+
 async function fetchJson(url) {
+    // Use fetch with proxy if available (cloud environment)
+    if (fetchFn && isCloudEnv) {
+        try {
+            const response = await fetchFn(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Accept': 'application/json'
+                },
+                signal: AbortSignal.timeout(30000)
+            })
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`)
+            }
+            return await response.json()
+        } catch (e) {
+            // Fall back to native http
+            console.warn(`[WARN] Fetch failed for ${url}, falling back: ${e.message}`)
+        }
+    }
+    
+    // Native http/https fallback (local development)
     return new Promise((resolve, reject) => {
         const parsedUrl = new URL(url)
         const client = parsedUrl.protocol === 'https:' ? https : http
-        
-        const proxyAgent = getProxyAgent()
         
         const options = {
             hostname: parsedUrl.hostname,
@@ -60,10 +105,6 @@ async function fetchJson(url) {
                 'Accept': 'application/json'
             },
             timeout: 30000
-        }
-        
-        if (proxyAgent) {
-            options.agent = proxyAgent
         }
 
         const req = client.request(options, (res) => {
@@ -88,6 +129,33 @@ async function fetchJson(url) {
 }
 
 async function httpRequest(url, options = {}) {
+    // Use fetch with proxy if available (cloud environment)
+    if (fetchFn && isCloudEnv) {
+        try {
+            const response = await fetchFn(url, {
+                method: options.method || 'GET',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:129.0) Gecko/20100101 Firefox/129.0',
+                    ...options.headers
+                },
+                body: options.body ? JSON.stringify(options.body) : undefined,
+                redirect: options.allowRedirects === false ? 'manual' : 'follow',
+                signal: AbortSignal.timeout((options.timeout || 30) * 1000)
+            })
+            
+            return {
+                status: response.status,
+                headers: Object.fromEntries(response.headers.entries()),
+                text: await response.text(),
+                url: response.url
+            }
+        } catch (e) {
+            // Fall back to native http
+            console.warn(`[WARN] Fetch failed for ${url}: ${e.message}`)
+        }
+    }
+    
+    // Native http/https fallback (local development)
     return new Promise((resolve, reject) => {
         const parsedUrl = new URL(url)
         const client = parsedUrl.protocol === 'https:' ? https : http
@@ -246,17 +314,37 @@ function checkUsername(username, siteName, siteInfo, config) {
 async function run() {
     try {
         await cafesdk.log.info('Username Finder Worker started')
+        
+        // Initialize proxy for cloud environment
+        if (isCloudEnv) {
+            await cafesdk.log.info('Initializing cloud proxy...')
+            const proxyReady = await initProxy()
+            if (proxyReady) {
+                await cafesdk.log.info('Cloud proxy initialized successfully')
+            } else {
+                await cafesdk.log.warn('Cloud proxy initialization failed - using direct requests (may fail in cloud)')
+            }
+        }
 
         const input = await cafesdk.parameter.getInputJSONObject()
         await cafesdk.log.debug(`Input: ${JSON.stringify(input)}`)
 
         const config = { ...DEFAULT_CONFIG, ...input }
         
-        // Parse usernames - now a simple string
+        // Parse usernames - supports both new 'usernames' array and legacy 'username' string
         let usernames = []
-        if (input.username) {
+        
+        // New format: usernames array from stringList editor [{string: "name1"}, {string: "name2"}]
+        if (input.usernames && Array.isArray(input.usernames)) {
+            usernames = input.usernames
+                .map(u => typeof u === 'string' ? u.trim() : (u.string || '').trim())
+                .filter(Boolean)
+        }
+        
+        // Legacy support: username string or array
+        if (usernames.length === 0 && input.username) {
             if (typeof input.username === 'string') {
-                usernames = [input.username.trim()]
+                usernames = input.username.split('\n').map(u => u.trim()).filter(Boolean)
             } else if (Array.isArray(input.username)) {
                 usernames = input.username.map(u => typeof u === 'string' ? u.trim() : String(u).trim()).filter(Boolean)
             }
@@ -294,37 +382,14 @@ async function run() {
         }
 
         // Filter to specific sites if requested
-        // stringList editor passes [{ "string": "siteName" }] format
-        let siteList = []
         if (config.sites && config.sites.length > 0) {
-            for (const site of config.sites) {
-                if (typeof site === 'string') {
-                    siteList.push(site.trim())
-                } else if (site && site.string) {
-                    siteList.push(site.string.trim())
-                }
-            }
-        }
-        
-        if (siteList.length > 0) {
             const filtered = {}
-            for (const siteName of siteList) {
-                // Try exact match first, then case-insensitive
-                if (siteData[siteName]) {
-                    filtered[siteName] = siteData[siteName]
-                } else {
-                    // Try case-insensitive match
-                    const lowerName = siteName.toLowerCase()
-                    for (const [name, info] of Object.entries(siteData)) {
-                        if (name.toLowerCase() === lowerName) {
-                            filtered[name] = info
-                            break
-                        }
-                    }
+            for (const site of config.sites) {
+                if (siteData[site]) {
+                    filtered[site] = siteData[site]
                 }
             }
             siteData = filtered
-            await cafesdk.log.info(`Filtered to ${Object.keys(siteData).length} specific sites: ${siteList.join(', ')}`)
         }
 
         const siteNames = Object.keys(siteData)
