@@ -3,10 +3,41 @@
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
-const cafesdk = require('./sdk')
 const https = require('https')
 const http = require('http')
 const { URL } = require('url')
+
+/**
+ * Auto-detect runtime environment and load correct SDK
+ * Priority:
+ * 1. global.cafesdk already set (test script override)
+ * 2. LOCAL_DEV=1 → local SDK
+ * 3. Default → cloud SDK (fallback to local on failure)
+ */
+function getSDK() {
+    // Test script override
+    if (global.cafesdk) return global.cafesdk;
+    
+    // Local development mode
+    if (process.env.LOCAL_DEV === '1') {
+        return require('./sdk_local');
+    }
+    
+    // Cafe cloud environment
+    try {
+        return require('./sdk');
+    } catch (err) {
+        console.log('[WARN] Failed to load gRPC SDK, falling back to local SDK');
+        return require('./sdk_local');
+    }
+}
+
+// Proxy for lazy SDK loading
+const cafesdk = new Proxy({}, {
+    get: function(target, prop) {
+        return getSDK()[prop];
+    }
+});
 
 // Global proxy agent for cloud environment
 let proxyDispatcher = null
@@ -337,7 +368,13 @@ async function run() {
         // New format: usernames array from stringList editor [{string: "name1"}, {string: "name2"}]
         if (input.usernames && Array.isArray(input.usernames)) {
             usernames = input.usernames
-                .map(u => typeof u === 'string' ? u.trim() : (u.string || '').trim())
+                .map(u => {
+                    // Handle null/undefined
+                    if (u === null || u === undefined) return '';
+                    if (typeof u === 'string') return u.trim();
+                    if (u.string) return u.string.trim();
+                    return '';
+                })
                 .filter(Boolean)
         }
         
@@ -353,7 +390,7 @@ async function run() {
         // Also check 'url' field for backward compatibility
         if (usernames.length === 0 && input.url) {
             if (Array.isArray(input.url)) {
-                usernames = input.url.map(u => typeof u === 'string' ? u.trim() : u.url?.trim()).filter(Boolean)
+                usernames = input.url.map(u => typeof u === 'string' ? u.trim() : u?.url?.trim()).filter(Boolean)
             } else if (typeof input.url === 'string') {
                 usernames = [input.url.trim()]
             }
