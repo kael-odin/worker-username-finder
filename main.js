@@ -100,6 +100,82 @@ const WAF_SIGNATURES = [
 // Check if we're in Cafe cloud environment
 const isCloudEnv = !!process.env.PROXY_AUTH && process.env.LOCAL_DEV !== '1'
 
+// Built-in fallback site data for common platforms
+function getBuiltInSiteData() {
+    return {
+        'Twitter': {
+            url: 'https://twitter.com/{}',
+            urlMain: 'https://twitter.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        },
+        'Instagram': {
+            url: 'https://www.instagram.com/{}',
+            urlMain: 'https://www.instagram.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        },
+        'GitHub': {
+            url: 'https://www.github.com/{}',
+            urlMain: 'https://www.github.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        },
+        'YouTube': {
+            url: 'https://www.youtube.com/@{}',
+            urlMain: 'https://www.youtube.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        },
+        'Reddit': {
+            url: 'https://www.reddit.com/user/{}',
+            urlMain: 'https://www.reddit.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        },
+        'Pinterest': {
+            url: 'https://www.pinterest.com/{}',
+            urlMain: 'https://www.pinterest.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        },
+        'TikTok': {
+            url: 'https://www.tiktok.com/@{}',
+            urlMain: 'https://www.tiktok.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        },
+        'LinkedIn': {
+            url: 'https://www.linkedin.com/in/{}',
+            urlMain: 'https://www.linkedin.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        },
+        'Facebook': {
+            url: 'https://www.facebook.com/{}',
+            urlMain: 'https://www.facebook.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        },
+        'Medium': {
+            url: 'https://medium.com/@{}',
+            urlMain: 'https://medium.com',
+            usernameClaimed: 'blue',
+            usernameUnclaimed: 'noonewouldeverusethis7',
+            errorType: 'status_code'
+        }
+    }
+}
+
 async function fetchJson(url) {
     // Use fetch with proxy if available (cloud environment)
     if (fetchFn && isCloudEnv) {
@@ -409,10 +485,20 @@ async function run() {
 
         await cafesdk.log.info(`Checking ${usernames.length} username(s) across social networks`)
 
-        // Load site data
+        // Load site data with fallback
         await cafesdk.log.info('Loading site data...')
-        let siteData = await fetchJson(MANIFEST_URL)
-        delete siteData['$schema']
+        let siteData = null
+        
+        try {
+            siteData = await fetchJson(MANIFEST_URL)
+            delete siteData['$schema']
+        } catch (e) {
+            await cafesdk.log.error(`Failed to load site data from GitHub: ${e.message}`)
+            await cafesdk.log.info('Using built-in fallback site data...')
+            
+            // Fallback to minimal built-in sites for common platforms
+            siteData = getBuiltInSiteData()
+        }
 
         // Filter NSFW sites if needed
         if (!config.includeNsfw) {
