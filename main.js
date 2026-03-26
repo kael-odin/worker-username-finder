@@ -362,14 +362,16 @@ async function run() {
 
         const config = { ...DEFAULT_CONFIG, ...input }
         
-        // Parse usernames - supports both new 'usernames' array and legacy 'username' string
+        // Parse usernames - supports multiple formats
+        // Cafe platform stringList behavior:
+        // - May send {usernames: [{string: "name1"}, {string: "name2"}]}
+        // - Or extract to {string: "name1"} when single item
         let usernames = []
         
-        // New format: usernames array from stringList editor [{string: "name1"}, {string: "name2"}]
+        // Format 1: usernames array from stringList editor [{string: "name1"}, {string: "name2"}]
         if (input.usernames && Array.isArray(input.usernames)) {
             usernames = input.usernames
                 .map(u => {
-                    // Handle null/undefined
                     if (u === null || u === undefined) return '';
                     if (typeof u === 'string') return u.trim();
                     if (u.string) return u.string.trim();
@@ -378,7 +380,12 @@ async function run() {
                 .filter(Boolean)
         }
         
-        // Legacy support: username string or array
+        // Format 2: Cafe platform extracts single stringList item to 'string' field
+        if (usernames.length === 0 && input.string && typeof input.string === 'string') {
+            usernames = [input.string.trim()]
+        }
+        
+        // Format 3: Legacy 'username' string or array
         if (usernames.length === 0 && input.username) {
             if (typeof input.username === 'string') {
                 usernames = input.username.split('\n').map(u => u.trim()).filter(Boolean)
@@ -387,7 +394,7 @@ async function run() {
             }
         }
         
-        // Also check 'url' field for backward compatibility
+        // Format 4: 'url' field for backward compatibility
         if (usernames.length === 0 && input.url) {
             if (Array.isArray(input.url)) {
                 usernames = input.url.map(u => typeof u === 'string' ? u.trim() : u?.url?.trim()).filter(Boolean)

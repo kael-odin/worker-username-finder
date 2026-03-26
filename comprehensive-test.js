@@ -80,13 +80,16 @@ function interpolateString(input, username) {
 }
 
 function parseUsernames(input) {
+    // Parse usernames - supports multiple formats
+    // Cafe platform stringList behavior:
+    // - May send {usernames: [{string: "name1"}, {string: "name2"}]}
+    // - Or extract to {string: "name1"} when single item
     let usernames = []
     
-    // New format: usernames array from stringList editor [{string: "name1"}, {string: "name2"}]
+    // Format 1: usernames array from stringList editor [{string: "name1"}, {string: "name2"}]
     if (input.usernames && Array.isArray(input.usernames)) {
         usernames = input.usernames
             .map(u => {
-                // Handle null/undefined
                 if (u === null || u === undefined) return '';
                 if (typeof u === 'string') return u.trim();
                 if (u.string) return u.string.trim();
@@ -95,7 +98,12 @@ function parseUsernames(input) {
             .filter(Boolean)
     }
     
-    // Legacy support: username string or array
+    // Format 2: Cafe platform extracts single stringList item to 'string' field
+    if (usernames.length === 0 && input.string && typeof input.string === 'string') {
+        usernames = [input.string.trim()]
+    }
+    
+    // Format 3: Legacy 'username' string or array
     if (usernames.length === 0 && input.username) {
         if (typeof input.username === 'string') {
             usernames = input.username.split('\n').map(u => u.trim()).filter(Boolean)
@@ -104,7 +112,7 @@ function parseUsernames(input) {
         }
     }
     
-    // Also check 'url' field for backward compatibility
+    // Format 4: 'url' field for backward compatibility
     if (usernames.length === 0 && input.url) {
         if (Array.isArray(input.url)) {
             usernames = input.url.map(u => typeof u === 'string' ? u.trim() : u?.url?.trim()).filter(Boolean)
@@ -176,6 +184,20 @@ async function runTests() {
     // =====================
     console.log('\n📋 Suite 2: Username Parsing');
     console.log('-'.repeat(40));
+    
+    await test('Parse usernames - Cafe stringList format (string field)', async () => {
+        // Cafe platform may extract single stringList item to 'string' field
+        const result = parseUsernames({ string: 'john_doe' });
+        assertEqual(result.length, 1);
+        assertEqual(result[0], 'john_doe');
+    });
+    
+    await test('Parse usernames - stringList with multiple items', async () => {
+        const result = parseUsernames({ usernames: [{ string: 'user1' }, { string: 'user2' }] });
+        assertEqual(result.length, 2);
+        assertEqual(result[0], 'user1');
+        assertEqual(result[1], 'user2');
+    });
     
     await test('Parse usernames - stringList format', async () => {
         const result = parseUsernames({
